@@ -271,6 +271,42 @@ mvn help:effective-settings
 # Show just the local repo path
 mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout
 ```
+### What `settings.xml` controls:
+
+- Where your local repo lives (default: `~/.m2/repository`)
+- Which remote repos to use, and in what order
+- Credentials (username/password) for private repos like company Nexus
+- Proxy settings if your company is behind a firewall
+
+### Example: routing everything through company Nexus
+
+```xml
+<settings>
+    <servers>
+        <server>
+            <id>company-nexus</id>
+            <username>your-username</username>
+            <password>your-password</password>
+        </server>
+    </servers>
+
+    <mirrors>
+        <mirror>
+            <id>company-nexus</id>
+            <mirrorOf>*</mirrorOf>   <!-- intercept ALL remote requests -->
+            <url>https://nexus.mycompany.com/repository/maven-public/</url>
+        </mirror>
+    </mirrors>
+</settings>
+```
+
+### Key piece: `<mirrorOf>*</mirrorOf>`
+
+This says: *"Whenever Maven wants to talk to **any** remote repo (including Maven Central), redirect it through our company Nexus instead."*
+
+This is how companies enforce that everything goes through their own cache.
+
+> Without the `<mirror>` URL and `<server>` credentials, the redirect alone wouldn't work — Maven needs to know **where** to go and **how to log in**.
 
 ---
 
@@ -371,44 +407,6 @@ The original address is still on the envelope — but the rule intercepts before
 > **`<repositories>` tells Maven *where to look*.**
 > **`<mirror>` tells Maven *where to look INSTEAD*.**
 
-### What `settings.xml` controls:
-
-- Where your local repo lives (default: `~/.m2/repository`)
-- Which remote repos to use, and in what order
-- Credentials (username/password) for private repos like company Nexus
-- Proxy settings if your company is behind a firewall
-
-### Example: routing everything through company Nexus
-
-```xml
-<settings>
-    <servers>
-        <server>
-            <id>company-nexus</id>
-            <username>your-username</username>
-            <password>your-password</password>
-        </server>
-    </servers>
-
-    <mirrors>
-        <mirror>
-            <id>company-nexus</id>
-            <mirrorOf>*</mirrorOf>   <!-- intercept ALL remote requests -->
-            <url>https://nexus.mycompany.com/repository/maven-public/</url>
-        </mirror>
-    </mirrors>
-</settings>
-```
-
-### Key piece: `<mirrorOf>*</mirrorOf>`
-
-This says: *"Whenever Maven wants to talk to **any** remote repo (including Maven Central), redirect it through our company Nexus instead."*
-
-This is how companies enforce that everything goes through their own cache.
-
-> Without the `<mirror>` URL and `<server>` credentials, the redirect alone wouldn't work — Maven needs to know **where** to go and **how to log in**.
-
----
 
 ## 9. A Simple Real Example: math-helper + calculator-app
 
