@@ -274,7 +274,7 @@ mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout
 
 ---
 
-## 15. Repositories vs Mirrors — The Difference
+## 8.1 Repositories vs Mirrors — The Difference
 
 This is subtle but important. There are two separate concepts:
 
