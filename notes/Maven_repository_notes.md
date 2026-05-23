@@ -225,6 +225,152 @@ There are **two** `settings.xml` files Maven cares about:
 | `<MAVEN_HOME>/conf/settings.xml` | **Global** — applies to everyone using that Maven install |
 | `~/.m2/settings.xml` | **User** — applies only to you (overrides global) |
 
+### Find your Maven installation
+
+This is where you can find your maven home path to verify settings.xml
+
+```bash
+mvn -v
+```
+
+Output shows `Maven home: /path/to/maven` → the global `settings.xml` is at `<Maven home>/conf/settings.xml`.
+
+Common locations:
+- **Linux (apt)**: `/usr/share/maven/conf/settings.xml`
+- **Mac (Homebrew)**: `/usr/local/Cellar/maven/<version>/libexec/conf/settings.xml`
+- **Windows**: `C:\Program Files\Apache\maven\conf\settings.xml`
+
+### When to create your own `~/.m2/settings.xml`
+
+Only when you need to customize:
+
+| Reason | What to add |
+|---|---|
+| Company has a private Nexus/JFrog | `<servers>` (credentials) + `<mirrors>` (URL) |
+| Behind a corporate firewall | `<proxies>` section |
+| Want `.m2` on a different drive | `<localRepository>D:/maven-cache</localRepository>` |
+| Different profiles for work/personal | `<profiles>` section |
+
+### Minimal template
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
+    <!-- Your custom config goes here -->
+</settings>
+```
+
+> Tip: Always customize the **user-level** file (`~/.m2/settings.xml`), not the global one. It survives Maven upgrades and doesn't need admin rights.
+
+### Useful commands to inspect what's active
+
+```bash
+# Show the final merged settings Maven is using
+mvn help:effective-settings
+
+# Show just the local repo path
+mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout
+```
+
+---
+
+## 15. Repositories vs Mirrors — The Difference
+
+This is subtle but important. There are two separate concepts:
+
+### `<repositories>` = WHERE to look (the original destinations)
+
+Declared in `pom.xml` or `settings.xml`. They literally list URLs to check for dependencies.
+
+```xml
+<repositories>
+    <repository>
+        <id>spring-releases</id>
+        <url>https://repo.spring.io/release</url>
+    </repository>
+</repositories>
+```
+
+Maven Central is included by default — no need to declare it.
+
+### `<mirrors>` = REDIRECT rules (override destinations)
+
+Mirrors don't add new places to look — they **hijack** existing requests and redirect them.
+
+```xml
+<mirrors>
+    <mirror>
+        <id>company-nexus</id>
+        <mirrorOf>*</mirrorOf>
+        <url>https://nexus.mycompany.com/repository/maven-public/</url>
+    </mirror>
+</mirrors>
+```
+
+### How requests flow
+
+```
+Your pom.xml says: "I need X from <repositories>"
+│
+▼
+Maven asks: "Is there a <mirror> that intercepts this request?"
+│
+├── YES → Use the mirror URL (original repo NEVER contacted)
+│
+└── NO  → Go to the original repository URL
+```
+### Mail-forwarding analogy 📬
+
+- `<repositories>` = the addresses written on envelopes
+- `<mirrors>` = a forwarding rule that redirects envelopes to a different PO Box
+
+The original address is still on the envelope — but the rule intercepts before delivery.
+
+### `<mirrorOf>` patterns — control which repos get hijacked
+
+| `<mirrorOf>` value | What it intercepts |
+|---|---|
+| `*` | **Every** remote repository (most common in companies) |
+| `central` | Only Maven Central |
+| `central,spring-releases` | Multiple specific repos (comma-separated) |
+| `*,!internal-repo` | Everything EXCEPT `internal-repo` |
+| `external:*` | Everything except localhost / file-based repos |
+
+### Quick test scenario
+
+```xml
+<mirrors>
+    <mirror>
+        <mirrorOf>central</mirrorOf>   <!-- only intercepts Maven Central -->
+        <url>https://nexus.mycompany.com/...</url>
+    </mirror>
+</mirrors>
+
+<repositories>
+    <repository>
+        <id>spring-releases</id>
+        <url>https://repo.spring.io/release</url>
+    </repository>
+</repositories>
+```
+
+| Request | Goes to |
+|---|---|
+| Anything from Maven Central | Company Nexus (intercepted) |
+| Anything from `repo.spring.io` | `repo.spring.io` directly (not intercepted — no `*`) |
+
+### Why companies use mirrors
+
+1. **Single point of control** — audit, scan, approve all dependencies
+2. **Caching for speed** — 500 devs share one cached copy from local network
+3. **Reliability** — keeps building even if Maven Central goes down
+4. **Internal artifacts** — same Nexus also hosts company's private JARs
+
+### Refined definition
+
+> **`<repositories>` tells Maven *where to look*.**
+> **`<mirror>` tells Maven *where to look INSTEAD*.**
+
 ### What `settings.xml` controls:
 
 - Where your local repo lives (default: `~/.m2/repository`)
